@@ -1,0 +1,6 @@
+import Link from 'next/link';
+import { db } from '@/lib/db';
+import { currentUserId } from '@/lib/auth';
+import { LoanForm } from '@/components/loans';
+import { loanSummary } from '@/server/loans';
+export default async function Loans() { const ownerId = (await currentUserId())!; const [clients, plans, loans] = await Promise.all([db.client.findMany({ where: { ownerId, status: 'ACTIVE' } }), db.loanPlan.findMany({ where: { ownerId, active: true } }), db.loan.findMany({ where: { ownerId }, include: { client: true, installments: true }, orderBy: { createdAt: 'desc' } })]); return <><header><h1>Préstamos</h1><p>Capital, abonos y saldos pendientes</p></header><div className="columns"><section className="panel"><h2>Préstamos ({loans.length})</h2><table><thead><tr><th>Cliente</th><th>Total</th><th>Pendiente</th><th>Estado</th></tr></thead><tbody>{loans.map(l => <tr key={l.id}><td><Link href={`/loans/${l.id}`}>{l.client.firstName} {l.client.lastName}</Link></td><td>${l.totalPayable.toString()}</td><td>${loanSummary(l).outstanding}</td><td>{l.status}</td></tr>)}</tbody></table></section><LoanForm clients={clients.map(c => ({ id: c.id, name: `${c.firstName} ${c.lastName}` }))} plans={plans.map(p => ({ id: p.id, name: `${p.name} (${p.interestRate}%)` }))}/></div></>; }

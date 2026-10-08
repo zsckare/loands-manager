@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Loans Manager
 
-## Getting Started
+Aplicación de gestión de préstamos personales con Next.js, TypeScript, Prisma y PostgreSQL.
 
-First, run the development server:
+## Alcance de esta entrega (fases 2–9)
+
+- Esquema Prisma para usuarios, clientes, planes, préstamos, cuotas, pagos y asignaciones.
+- Inicio y cierre de sesión con cookie firmada.
+- Pantallas de clientes, planes, préstamos, cobranza y dashboard.
+- Simulación de préstamos, generación de cuotas y registro de pagos de importe personalizado.
+- Aplicación de pagos a las cuotas pendientes en orden y cálculo de saldo vencido.
+
+**Estado:** base de implementación para desarrollo. No se ha validado aquí el build, las migraciones ni los flujos end-to-end. No usar con dinero real sin pruebas y revisión de seguridad. La reversión de pagos, auditoría financiera completa, reportes y otras funciones del roadmap siguen pendientes.
+
+## Requisitos
+
+Node.js compatible con Next.js 16, npm y Docker Compose.
+
+## Instalación
 
 ```bash
+cp .env.example .env
+# Configura POSTGRES_PASSWORD, DATABASE_URL y AUTH_SECRET
+# Genera AUTH_SECRET con: openssl rand -hex 32
+npm install
+docker compose -f docker-compose.yml up -d
+npx prisma generate
+npx prisma migrate dev --name init
+npm run user:create
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+La aplicación estará disponible en http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Validaciones recomendadas
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run typecheck
+npm run lint
+npm run build
+```
 
-## Learn More
+## Consideraciones financieras
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+El interés del plan es un porcentaje total fijo sobre el principal. Las cuotas se calculan con centavos exactos. Los pagos personalizados se aplican a las cuotas con saldo, en orden ascendente, y no disminuyen el interés pactado. Los estados de mora se derivan de la fecha de vencimiento y del saldo pendiente.

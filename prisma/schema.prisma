@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -10,4 +5,141 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum LoanStatus {
+  ACTIVE
+  PAID_OFF
+  CANCELLED
+}
+
+enum Frequency {
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
+enum PaymentStatus {
+  POSTED
+  REVERSED
+}
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  email        String     @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime   @default(now())
+  clients      Client[]
+  plans        LoanPlan[]
+  loans        Loan[]
+  payments     Payment[]
+}
+
+model Client {
+  id        String       @id @default(uuid()) @db.Uuid
+  ownerId   String       @db.Uuid
+  owner     User         @relation(fields: [ownerId], references: [id])
+  firstName String
+  lastName  String
+  phone     String?
+  address   String?
+  notes     String?
+  status    ClientStatus @default(ACTIVE)
+  createdAt DateTime     @default(now())
+  loans     Loan[]
+
+  @@unique([id, ownerId])
+  @@index([ownerId, lastName])
+}
+
+model LoanPlan {
+  id               String    @id @default(uuid()) @db.Uuid
+  ownerId          String    @db.Uuid
+  owner            User      @relation(fields: [ownerId], references: [id])
+  name             String
+  installmentCount Int
+  interestRate     Decimal   @db.Decimal(7, 4)
+  frequency        Frequency @default(DAILY)
+  collectionDays   Int[]     @default([1, 2, 3, 4, 5, 6, 7])
+  active           Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  loans            Loan[]
+
+  @@unique([id, ownerId])
+  @@index([ownerId, active])
+}
+
+model Loan {
+  id               String        @id @default(uuid()) @db.Uuid
+  ownerId          String        @db.Uuid
+  owner            User          @relation(fields: [ownerId], references: [id])
+  clientId         String        @db.Uuid
+  client           Client        @relation(fields: [clientId, ownerId], references: [id, ownerId])
+  planId           String        @db.Uuid
+  plan             LoanPlan      @relation(fields: [planId, ownerId], references: [id, ownerId])
+  principal        Decimal       @db.Decimal(18, 2)
+  interestRate     Decimal       @db.Decimal(7, 4)
+  totalInterest    Decimal       @db.Decimal(18, 2)
+  totalPayable     Decimal       @db.Decimal(18, 2)
+  installmentCount Int
+  frequency        Frequency
+  collectionDays   Int[]
+  startDate        DateTime      @db.Date
+  status           LoanStatus    @default(ACTIVE)
+  createdAt        DateTime      @default(now())
+  installments     Installment[]
+  payments         Payment[]
+
+  @@unique([id, ownerId])
+  @@index([ownerId, status])
+}
+
+model Installment {
+  id          String              @id @default(uuid()) @db.Uuid
+  loanId      String              @db.Uuid
+  loan        Loan                @relation(fields: [loanId], references: [id])
+  number      Int
+  dueDate     DateTime            @db.Date
+  amount      Decimal             @db.Decimal(18, 2)
+  paidAmount  Decimal             @default(0) @db.Decimal(18, 2)
+  allocations PaymentAllocation[]
+
+  @@unique([loanId, number])
+  @@index([dueDate])
+}
+
+model Payment {
+  id             String              @id @default(uuid()) @db.Uuid
+  ownerId        String              @db.Uuid
+  owner          User                @relation(fields: [ownerId], references: [id])
+  loanId         String              @db.Uuid
+  loan           Loan                @relation(fields: [loanId, ownerId], references: [id, ownerId])
+  amount         Decimal             @db.Decimal(18, 2)
+  effectiveDate  DateTime            @db.Date
+  note           String?
+  idempotencyKey String
+  status         PaymentStatus       @default(POSTED)
+  createdAt      DateTime            @default(now())
+  allocations    PaymentAllocation[]
+
+  @@unique([ownerId, idempotencyKey])
+  @@index([loanId, createdAt])
+}
+
+model PaymentAllocation {
+  id            String      @id @default(uuid()) @db.Uuid
+  paymentId     String      @db.Uuid
+  payment       Payment     @relation(fields: [paymentId], references: [id])
+  installmentId String      @db.Uuid
+  installment   Installment @relation(fields: [installmentId], references: [id])
+  amount        Decimal     @db.Decimal(18, 2)
+
+  @@unique([paymentId, installmentId])
 }

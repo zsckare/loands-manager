@@ -1,0 +1,4 @@
+import { db } from '@/lib/db';
+import { currentUserId } from '@/lib/auth';
+import { PlanForm } from '@/components/plans';
+export default async function Plans() { const ownerId = (await currentUserId())!; const rows = await db.loanPlan.findMany({ where: { ownerId }, orderBy: { createdAt: 'desc' } }); return <><header><h1>Planes de préstamo</h1><p>Condiciones reutilizables para nuevos préstamos</p></header><div className="columns"><section className="panel"><h2>Planes ({rows.length})</h2><table><thead><tr><th>Nombre</th><th>Abonos</th><th>Interés</th><th>Estado</th></tr></thead><tbody>{rows.map(p => <tr key={p.id}><td>{p.name}</td><td>{p.installmentCount}</td><td>{p.interestRate.toString()}%</td><td>{p.active ? 'Activo' : 'Inactivo'}</td></tr>)}</tbody></table></section><PlanForm /></div></>; }
