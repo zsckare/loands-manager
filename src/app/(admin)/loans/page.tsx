@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { db } from "@/lib/db";
-import { currentUserId } from "@/lib/auth";
+import { actor, clientScope, loanScope, portfolioOwner } from "@/lib/access";
 import { LoanForm } from "@/components/loans";
 import { loanSummary } from "@/server/loans";
 
@@ -11,12 +11,12 @@ export default function LoansPage() {
 }
 
 async function LoansContent() {
-  const ownerId = await currentUserId();
-  if (!ownerId) return null;
+  const user = await actor();
+  const ownerId = portfolioOwner(user);
   const [clients, plans, loans] = await Promise.all([
-    db.client.findMany({ where: { ownerId, status: "ACTIVE" } }),
+    db.client.findMany({ where: { ...clientScope(user), status: "ACTIVE" } }),
     db.loanPlan.findMany({ where: { ownerId, active: true } }),
-    db.loan.findMany({ where: { ownerId }, include: { client: true, installments: true }, orderBy: { createdAt: "desc" } }),
+    db.loan.findMany({ where: loanScope(user), include: { client: true, installments: true }, orderBy: { createdAt: "desc" } }),
   ]);
   return (
     <>
@@ -38,10 +38,10 @@ async function LoansContent() {
             </tbody>
           </table>
         </section>
-        <LoanForm
+        {user.role !== "COLLECTOR" && <LoanForm
           clients={clients.map((client) => ({ id: client.id, name: `${client.firstName} ${client.lastName}` }))}
           plans={plans.map((plan) => ({ id: plan.id, name: `${plan.name} (${plan.interestRate}%)` }))}
-        />
+        />}
       </div>
     </>
   );

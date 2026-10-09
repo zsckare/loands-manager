@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { owner, errorResponse, HttpError } from '@/lib/http';
+import { errorResponse, HttpError } from '@/lib/http';
+import { actor, authorize, portfolioOwner } from '@/lib/access';
 import { planSchema } from '@/server/schemas';
 type C = {
     params: Promise<{
@@ -9,7 +10,9 @@ type C = {
     }>;
 };
 export async function PATCH(req: Request, { params }: C) { try {
-    const ownerId = await owner();
+    const user = await actor();
+    authorize(user, "managePlans");
+    const ownerId = portfolioOwner(user);
     const { id } = await params;
     const body = planSchema.partial().extend({ active: z.boolean().optional() }).parse(await req.json());
     const result = await db.loanPlan.updateMany({ where: { id, ownerId }, data: body });

@@ -1,16 +1,17 @@
 import { db } from "@/lib/db";
-import { currentUserId } from "@/lib/auth";
+import { actor, loanScope, portfolioOwner } from "@/lib/access";
 import { receiptPdf } from "@/lib/simple-pdf";
 import { errorResponse, HttpError } from "@/lib/http";
 
 type Context = { params: Promise<{ id: string }> };
 export async function GET(_request: Request, { params }: Context) {
   try {
-    const ownerId = await currentUserId();
-    if (!ownerId) throw new HttpError(401, "Unauthorized");
+    const user = await actor();
+  const ownerId = portfolioOwner(user);
+    
     const { id } = await params;
     const receipt = await db.receipt.findFirst({
-      where: { id, ownerId },
+      where: { id, ownerId, payment: { loan: loanScope(user) } },
       include: { payment: { include: { loan: { include: { client: true } }, allocations: { include: { installment: true } } } } },
     });
     if (!receipt) throw new HttpError(404, "Receipt not found");

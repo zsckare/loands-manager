@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { currentUserId } from "@/lib/auth";
+import { actor, loanScope, portfolioOwner } from "@/lib/access";
 import { PrintReceipt } from "@/components/print-receipt";
 
 type Props = { params: Promise<{ id: string }> };
@@ -10,11 +10,12 @@ export default function ReceiptPage({ params }: Props) {
 }
 
 async function ReceiptContent({ params }: Props) {
-  const ownerId = await currentUserId();
-  if (!ownerId) return null;
+  const user = await actor();
+  const ownerId = portfolioOwner(user);
+  
   const { id } = await params;
   const receipt = await db.receipt.findFirst({
-    where: { id, ownerId },
+    where: { id, ownerId, payment: { loan: loanScope(user) } },
     include: { payment: { include: { loan: { include: { client: true } }, allocations: { include: { installment: true } } } } },
   });
   if (!receipt) notFound();

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { cents } from "@/lib/money";
 import { errorResponse, HttpError } from "@/lib/http";
 import { requireAdmin } from "@/lib/roles";
+import { lockAndCheckCashDay } from "@/server/cash-controls";
 
 const entrySchema = z.object({
   type: z.enum(["INCOME", "EXPENSE"]),
@@ -28,7 +29,17 @@ export async function POST(request: Request) {
     const user = await requireAdmin();
     const input = entrySchema.parse(await request.json());
     if (cents(input.amount) <= 0n) throw new HttpError(400, "Amount must be positive");
-    const entry = await db.cashEntry.create({ data: { ...input, ownerId: user.id } });
+    const entry = await db.$transaction(async (tx) => {
+      const occurredAt = new Date();
+      await lockAndCheckCashDay(tx, user.id, occurredAt);
+      const created = await tx.cashEntry.create({ data: { ...input, ownerId: user.id, occurredAt } });
+      await tx.auditEvent.create({ data: {
+        ownerId: user.id, actorId: user.id, action: "CASH_ENTRY_CREATED",
+        entityType: "CashEntry", entityId: created.id,
+        details: { type: input.type, amount: input.amount },
+      } });
+      return created;
+    });
     return NextResponse.json(entry, { status: 201 });
   } catch (error) { return errorResponse(error); }
 }

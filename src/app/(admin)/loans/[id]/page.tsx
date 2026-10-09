@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { currentUserId } from "@/lib/auth";
+import { actor, loanScope } from "@/lib/access";
 import { loanSummary } from "@/server/loans";
 import { PaymentForm } from "@/components/loans";
 
@@ -13,11 +13,10 @@ export default function LoanDetailPage({ params }: DetailProps) {
 }
 
 async function LoanDetailContent({ params }: DetailProps) {
-  const ownerId = await currentUserId();
-  if (!ownerId) return null;
+  const user = await actor();
   const { id } = await params;
   const loan = await db.loan.findFirst({
-    where: { id, ownerId },
+    where: { id, ...loanScope(user) },
     include: {
       client: true,
       plan: true,

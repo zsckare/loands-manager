@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { db } from "@/lib/db";
-import { currentUserId } from "@/lib/auth";
+import { actor, loanScope } from "@/lib/access";
 
 /**
  * Collections page.
@@ -30,11 +30,7 @@ export default function CollectionsPage() {
  * Results are restricted to the authenticated owner.
  */
 async function CollectionsContent() {
-    const ownerId = await currentUserId();
-
-    if (!ownerId) {
-        return null;
-    }
+    const user = await actor();
 
     // Use UTC midnight to match the existing date-only
     // comparison behavior used by the application.
@@ -48,7 +44,7 @@ async function CollectionsContent() {
                 lt: today,
             },
             loan: {
-                ownerId,
+                ...loanScope(user),
                 status: "ACTIVE",
             },
         },

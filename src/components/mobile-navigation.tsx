@@ -16,13 +16,13 @@ const links = [
 ];
 
 /** Responsive navigation shared across desktop, tablet and phone. */
-export function MobileNavigation() {
+export function MobileNavigation({ role }: { role: "ADMIN" | "SUPERVISOR" | "COLLECTOR" }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   return <>
     <button type="button" className="menu-toggle" aria-expanded={open} aria-controls="main-nav" onClick={() => setOpen(!open)}>{open ? "Cerrar ✕" : "Menú ☰"}</button>
     <nav id="main-nav" className={open ? "nav-links nav-open" : "nav-links"} aria-label="Navegación principal">
-      {links.map((link) => <Link key={link.href} href={link.href} aria-current={pathname.startsWith(link.href) ? "page" : undefined} onClick={() => setOpen(false)}><span aria-hidden="true">{link.icon}</span>{link.label}</Link>)}
+      {links.filter(link => role === "ADMIN" || (role === "SUPERVISOR" ? !["/cash", "/staff"].includes(link.href) : !["/cash", "/staff", "/reports"].includes(link.href))).map((link) => <Link key={link.href} href={link.href} aria-current={pathname.startsWith(link.href) ? "page" : undefined} onClick={() => setOpen(false)}><span aria-hidden="true">{link.icon}</span>{link.label}</Link>)}
     </nav>
   </>;
 }

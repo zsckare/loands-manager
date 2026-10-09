@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { db } from "@/lib/db";
-import { currentUserId } from "@/lib/auth";
+import { actor, clientScope } from "@/lib/access";
 import { ClientForm } from "@/components/clients";
 
 /** Displays the page shell while authenticated data loads. / Muestra la estructura mientras se cargan los datos. */
@@ -10,9 +10,8 @@ export default function ClientsPage() {
 
 /** Loads only the current owner's clients. / Consulta únicamente los clientes del usuario actual. */
 async function ClientsContent() {
-  const ownerId = await currentUserId();
-  if (!ownerId) return null;
-  const rows = await db.client.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" } });
+  const user = await actor();
+  const rows = await db.client.findMany({ where: clientScope(user), orderBy: { createdAt: "desc" } });
   return (
     <>
       <header><h1>Clientes</h1><p>Expedientes y contactos</p></header>
@@ -32,7 +31,7 @@ async function ClientsContent() {
             </tbody>
           </table>
         </section>
-        <ClientForm />
+        {user.role !== "COLLECTOR" && <ClientForm />}
       </div>
     </>
   );

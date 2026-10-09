@@ -106,3 +106,26 @@ tbody tr:hover { background: #f9fbff; }
 }
 /* Legacy tables without a dedicated wrapper remain usable on small screens. */
 .panel:has(> table) { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Touch-first cash controls / Controles táctiles para caja. */
+.mobile-form { display: grid; gap: 1rem; margin-top: 1rem; }
+.mobile-form label { display: grid; gap: .4rem; font-weight: 600; }
+.mobile-form input, .mobile-form textarea { width: 100%; min-height: 48px; padding: .75rem; border-radius: 10px; border: 1px solid var(--border, #cbd5e1); background: var(--surface, #fff); color: inherit; font: inherit; }
+.mobile-form button { min-height: 48px; border-radius: 10px; padding: .75rem 1rem; cursor: pointer; }
+.mobile-form button:disabled { opacity: .6; cursor: wait; }
+@media (max-width: 760px) {
+  .content { min-width: 0; }
+  .columns { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .panel { min-width: 0; }
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-scroll table { min-width: 580px; }
+  input, select, textarea, button { font-size: 16px; }
+}
+@media (max-width: 430px) { .metrics { grid-template-columns: minmax(0, 1fr); } }
+
+.report-filters { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; margin-bottom: 1.25rem; }
+.report-filters label { display: grid; gap: .3rem; flex: 1 1 140px; }
+.report-filters input, .report-filters select, .report-filters button { min-height: 44px; padding: .6rem; border-radius: 9px; }
+.report-filters button { flex: 1 1 100px; }
+@media (max-width: 600px) { .report-filters { display: grid; grid-template-columns: 1fr; } }

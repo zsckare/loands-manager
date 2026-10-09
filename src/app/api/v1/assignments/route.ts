@@ -24,10 +24,17 @@ export async function POST(request: Request) {
       db.user.findFirst({ where: { id: input.collectorId, managerId: admin.id, role: "COLLECTOR", active: true } }),
     ]);
     if (!client || !collector) throw new HttpError(404, "Client or collector not found");
-    const result = await db.collectorAssignment.upsert({
-      where: { clientId: client.id },
-      create: { clientId: client.id, collectorId: collector.id, assignedById: admin.id },
-      update: { collectorId: collector.id, assignedById: admin.id },
+    const result = await db.$transaction(async (tx) => {
+      const assignment = await tx.collectorAssignment.upsert({
+        where: { clientId: client.id },
+        create: { clientId: client.id, collectorId: collector.id, assignedById: admin.id },
+        update: { collectorId: collector.id, assignedById: admin.id },
+      });
+      await tx.auditEvent.create({ data: {
+        ownerId: admin.id, actorId: admin.id, action: "COLLECTOR_ASSIGNED",
+        entityType: "Client", entityId: client.id, details: { collectorId: collector.id },
+      } });
+      return assignment;
     });
     return NextResponse.json(result);
   } catch (error) { return errorResponse(error); }

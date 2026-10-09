@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { db } from "@/lib/db";
-import { currentUserId } from "@/lib/auth";
+import { actor, portfolioOwner } from "@/lib/access";
 import { PlanForm } from "@/components/plans";
 
 /** Streams authenticated plan data. / Carga los planes dentro de Suspense. */
@@ -9,8 +9,8 @@ export default function PlansPage() {
 }
 
 async function PlansContent() {
-  const ownerId = await currentUserId();
-  if (!ownerId) return null;
+  const user = await actor();
+  const ownerId = portfolioOwner(user);
   const rows = await db.loanPlan.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" } });
   return (
     <>
@@ -32,7 +32,7 @@ async function PlansContent() {
             </tbody>
           </table>
         </section>
-        <PlanForm />
+        {user.role === "ADMIN" && <PlanForm />}
       </div>
     </>
   );

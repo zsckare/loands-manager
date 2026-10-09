@@ -30,13 +30,18 @@ export async function POST(request: Request) {
     const input = createSchema.parse(await request.json());
     const existing = await db.user.findUnique({ where: { email: input.email } });
     if (existing) throw new HttpError(409, "Email already registered");
-    const user = await db.user.create({
-      data: {
-        name: input.name, email: input.email,
-        passwordHash: await hash(input.password, 12),
-        role: input.role, managerId: admin.id,
-      },
-      select: { id: true, name: true, email: true, role: true },
+    const passwordHash = await hash(input.password, 12);
+    const user = await db.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: { name: input.name, email: input.email, passwordHash,
+          role: input.role, managerId: admin.id },
+        select: { id: true, name: true, email: true, role: true },
+      });
+      await tx.auditEvent.create({ data: {
+        ownerId: admin.id, actorId: admin.id, action: "STAFF_CREATED",
+        entityType: "User", entityId: created.id, details: { role: created.role },
+      } });
+      return created;
     });
     return NextResponse.json(user, { status: 201 });
   } catch (error) { return errorResponse(error); }

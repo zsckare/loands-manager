@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { owner, errorResponse, HttpError } from '@/lib/http';
+import { errorResponse, HttpError } from '@/lib/http';
+import { actor, authorize, portfolioOwner } from '@/lib/access';
 import { loanSchema } from '@/server/schemas';
 import { calculate } from '@/lib/money';
 import { schedule } from '@/lib/schedule';
 export async function POST(req: Request) { try {
-    const ownerId = await owner();
+    const user = await actor();
+    authorize(user, "createLoan");
+    const ownerId = portfolioOwner(user);
     const input = loanSchema.parse(await req.json());
     const plan = await db.loanPlan.findFirst({ where: { id: input.planId, ownerId, active: true } });
     if (!plan)

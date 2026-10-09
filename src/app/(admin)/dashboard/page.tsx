@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { db } from "@/lib/db";
-import { currentUserId } from "@/lib/auth";
+import { actor, loanScope } from "@/lib/access";
 import { loanSummary } from "@/server/loans";
 import { cents, money } from "@/lib/money";
 
@@ -41,16 +41,10 @@ export default function Dashboard() {
  * préstamos asociados al usuario autenticado.
  */
 async function DashboardContent() {
-    const ownerId = await currentUserId();
-
-    if (!ownerId) {
-        return null;
-    }
+    const user = await actor();
 
     const loans = await db.loan.findMany({
-        where: {
-            ownerId,
-        },
+        where: loanScope(user),
         include: {
             client: true,
             installments: true,

@@ -209,3 +209,33 @@ model CollectorAssignment {
   createdAt   DateTime @default(now())
   @@index([collectorId])
 }
+
+
+// Immutable application audit trail. / Bitácora de operaciones críticas.
+model AuditEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  ownerId     String   @db.Uuid
+  actorId     String   @db.Uuid
+  action      String
+  entityType  String
+  entityId    String
+  details     Json?
+  createdAt   DateTime @default(now())
+  @@index([ownerId, createdAt])
+  @@index([entityType, entityId])
+}
+
+// A single immutable daily close per owner and local business date.
+model CashClose {
+  id              String   @id @default(uuid()) @db.Uuid
+  ownerId         String   @db.Uuid
+  businessDate    DateTime @db.Date
+  timezone        String   @default("America/Mexico_City")
+  expectedBalance Decimal  @db.Decimal(18, 2)
+  countedBalance  Decimal  @db.Decimal(18, 2)
+  difference      Decimal  @db.Decimal(18, 2)
+  closedById      String   @db.Uuid
+  closedAt        DateTime @default(now())
+  note            String?
+  @@unique([ownerId, businessDate])
+}

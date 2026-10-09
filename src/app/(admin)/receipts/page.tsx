@@ -1,17 +1,18 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { db } from "@/lib/db";
-import { currentUserId } from "@/lib/auth";
+import { actor, loanScope, portfolioOwner } from "@/lib/access";
 
 export default function ReceiptsPage() {
   return <Suspense fallback={<p>Cargando comprobantes...</p>}><ReceiptsContent /></Suspense>;
 }
 
 async function ReceiptsContent() {
-  const ownerId = await currentUserId();
-  if (!ownerId) return null;
+  const user = await actor();
+  const ownerId = portfolioOwner(user);
+  
   const receipts = await db.receipt.findMany({
-    where: { ownerId },
+    where: { ownerId, payment: { loan: loanScope(user) } },
     include: { payment: { include: { loan: { include: { client: true } } } } },
     orderBy: { issuedAt: "desc" }, take: 150,
   });

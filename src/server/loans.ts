@@ -2,9 +2,10 @@ import { db } from '@/lib/db';
 import { calculate, cents, money } from '@/lib/money';
 import { schedule } from '@/lib/schedule';
 import { HttpError } from '@/lib/http';
+import { lockAndCheckCashDay } from '@/server/cash-controls';
 import type { z } from 'zod';
 import type { loanSchema } from './schemas';
-export async function createLoan(ownerId: string, input: z.infer<typeof loanSchema>) {
+export async function createLoan(ownerId: string, input: z.infer<typeof loanSchema>, actorId = ownerId) {
     const [client, plan] = await Promise.all([db.client.findFirst({ where: { id: input.clientId, ownerId, status: 'ACTIVE' } }), db.loanPlan.findFirst({ where: { id: input.planId, ownerId, active: true } })]);
     if (!client || !plan)
         throw new HttpError(404, 'Client or plan not found');
@@ -12,6 +13,7 @@ export async function createLoan(ownerId: string, input: z.infer<typeof loanSche
     const dates = schedule(input.startDate, plan.installmentCount, plan.frequency, plan.collectionDays);
     // The loan and its disbursement are one financial transaction.
     return db.$transaction(async (tx) => {
+        await lockAndCheckCashDay(tx, ownerId, new Date(`${input.startDate}T12:00:00Z`));
         const loan = await tx.loan.create({
             data: {
                 ownerId, clientId: client.id, planId: plan.id,
@@ -35,6 +37,7 @@ export async function createLoan(ownerId: string, input: z.infer<typeof loanSche
                 occurredAt: new Date(`${input.startDate}T12:00:00Z`),
             },
         });
+        await tx.auditEvent.create({ data: { ownerId, actorId, action: "LOAN_CREATED", entityType: "Loan", entityId: loan.id, details: { principal: input.principal } } });
         return loan;
     });
 }

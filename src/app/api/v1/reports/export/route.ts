@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/roles";
+import { actor, authorize, portfolioOwner } from "@/lib/access";
 import { db } from "@/lib/db";
 import { errorResponse } from "@/lib/http";
 
@@ -9,11 +9,27 @@ function cell(value: unknown): string {
   return `"${safe.replaceAll('"', '""')}"`;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const admin = await requireAdmin();
+    const user = await actor();
+    authorize(user, "viewReports");
+    const ownerId = portfolioOwner(user);
+    const params = new URL(request.url).searchParams;
+    const from = params.get("from");
+    const to = params.get("to");
+    const status = params.get("status");
+    if ((from && !/^\d{4}-\d{2}-\d{2}$/.test(from)) || (to && !/^\d{4}-\d{2}-\d{2}$/.test(to)) ||
+        (status && !["ACTIVE", "PAID_OFF", "CANCELLED"].includes(status))) {
+      return new Response("Invalid report filters", { status: 400 });
+    }
     const loans = await db.loan.findMany({
-      where: { ownerId: admin.id },
+      where: { ownerId,
+        ...(status ? { status: status as "ACTIVE" | "PAID_OFF" | "CANCELLED" } : {}),
+        ...(from || to ? { startDate: {
+          ...(from ? { gte: new Date(`${from}T00:00:00Z`) } : {}),
+          ...(to ? { lte: new Date(`${to}T00:00:00Z`) } : {}),
+        } } : {}),
+      },
       include: { client: true, installments: true },
       orderBy: { createdAt: "desc" },
     });

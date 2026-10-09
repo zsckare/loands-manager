@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { owner, errorResponse, HttpError } from '@/lib/http';
+import { errorResponse, HttpError } from '@/lib/http';
+import { actor, authorize, clientScope, portfolioOwner } from '@/lib/access';
 import { clientSchema } from '@/server/schemas';
 type C = {
     params: Promise<{
@@ -8,9 +9,9 @@ type C = {
     }>;
 };
 export async function GET(_: Request, { params }: C) { try {
-    const ownerId = await owner();
+    const user = await actor();
     const { id } = await params;
-    const client = await db.client.findFirst({ where: { id, ownerId }, include: { loans: { include: { installments: true } } } });
+    const client = await db.client.findFirst({ where: { id, ...clientScope(user) }, include: { loans: { include: { installments: true } } } });
     if (!client)
         throw new HttpError(404, 'Not found');
     return NextResponse.json(client);
@@ -19,7 +20,9 @@ catch (e) {
     return errorResponse(e);
 } }
 export async function PATCH(req: Request, { params }: C) { try {
-    const ownerId = await owner();
+    const user = await actor();
+    authorize(user, "editClient");
+    const ownerId = portfolioOwner(user);
     const { id } = await params;
     const body = clientSchema.partial().parse(await req.json());
     const result = await db.client.updateMany({ where: { id, ownerId }, data: body });

@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { owner, errorResponse } from '@/lib/http';
+import { errorResponse } from '@/lib/http';
+import { actor, loanScope } from '@/lib/access';
 import { loanSummary } from '@/server/loans';
 import { cents, money } from '@/lib/money';
 export async function GET() { try {
-    const ownerId = await owner();
-    const loans = await db.loan.findMany({ where: { ownerId }, include: { client: true, installments: true } });
+    const user = await actor();
+    const loans = await db.loan.findMany({ where: loanScope(user), include: { client: true, installments: true } });
     let recovered = 0n, outstanding = 0n, overdue = 0n, active = 0, late = 0;
     const overdueLoans = [];
     for (const loan of loans) {

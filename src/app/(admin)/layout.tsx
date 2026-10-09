@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 
-import { currentUserId } from "@/lib/auth";
+import { actor } from "@/lib/access";
 import { Logout } from "@/components/logout";
 import { MobileNavigation } from "@/components/mobile-navigation";
 
@@ -31,18 +31,15 @@ async function AuthenticatedAdminLayout({
 }: AdminLayoutProps) {
   await connection();
 
-  const userId = await currentUserId();
-
-  if (!userId) {
-    redirect("/login");
-  }
+  const user = await actor().catch(() => null);
+  if (!user) redirect("/login");
 
   return (
     <div className="shell">
       <aside className="sidebar">
         <h2>◈ Loans Manager</h2>
 
-        <MobileNavigation />
+        <MobileNavigation role={user.role} />
 
         <Logout />
       </aside>
