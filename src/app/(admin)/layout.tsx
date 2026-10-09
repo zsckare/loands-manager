@@ -1,98 +1,78 @@
-
 import Link from "next/link";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 
 import { currentUserId } from "@/lib/auth";
 import { Logout } from "@/components/logout";
 
 interface AdminLayoutProps {
-    children: React.ReactNode;
+  children: React.ReactNode;
 }
 
 /**
- * Main layout for authenticated administration pages.
- *
- * Suspense isolates session-dependent rendering so that
- * Next.js can safely prerender the outer route shell.
+ * Render the administration shell behind a Suspense boundary.
+ * Muestra el panel administrativo dentro de un límite de Suspense.
  */
-export default function AdminLayout({
-    children,
-}: AdminLayoutProps) {
-    return (
-        <Suspense fallback={<AdminLayoutLoading />}>
-            <AuthenticatedAdminLayout>
-                {children}
-            </AuthenticatedAdminLayout>
-        </Suspense>
-    );
+export default function AdminLayout({ children }: AdminLayoutProps) {
+  return (
+    <Suspense fallback={<AdminLayoutLoading />}>
+      <AuthenticatedAdminLayout>{children}</AuthenticatedAdminLayout>
+    </Suspense>
+  );
 }
 
 /**
- * Validates the active session before rendering the
- * administration navigation and protected content.
+ * Validate the session at request time before showing protected content.
+ * Valida la sesión durante la petición antes de mostrar contenido privado.
  */
 async function AuthenticatedAdminLayout({
-    children,
+  children,
 }: AdminLayoutProps) {
-    const userId = await currentUserId();
+  await connection();
 
-    if (!userId) {
-        redirect("/login");
-    }
+  const userId = await currentUserId();
 
-    return (
-        <div className="shell">
-            <aside className="sidebar">
-                <h2>◈ Loans Manager</h2>
+  if (!userId) {
+    redirect("/login");
+  }
 
-                <nav>
-                    <Link href="/dashboard">
-                        Dashboard
-                    </Link>
+  return (
+    <div className="shell">
+      <aside className="sidebar">
+        <h2>◈ Loans Manager</h2>
 
-                    <Link href="/clients">
-                        Clientes
-                    </Link>
+        <nav>
+          <Link href="/dashboard">Dashboard</Link>
+          <Link href="/clients">Clientes</Link>
+          <Link href="/plans">Planes</Link>
+          <Link href="/loans">Préstamos</Link>
+          <Link href="/collections">Cobranza</Link>
+        </nav>
 
-                    <Link href="/plans">
-                        Planes
-                    </Link>
+        <Logout />
+      </aside>
 
-                    <Link href="/loans">
-                        Préstamos
-                    </Link>
-
-                    <Link href="/collections">
-                        Cobranza
-                    </Link>
-                </nav>
-
-                <Logout />
-            </aside>
-
-            <main className="content">
-                {children}
-            </main>
-        </div>
-    );
+      <main className="content">{children}</main>
+    </div>
+  );
 }
 
 /**
- * Non-sensitive fallback displayed while the server
- * validates the user's session.
+ * Public loading shell displayed while authentication is checked.
+ * Estructura temporal sin datos privados mientras se valida la sesión.
  */
 function AdminLayoutLoading() {
-    return (
-        <div className="shell">
-            <aside className="sidebar">
-                <h2>◈ Loans Manager</h2>
-                <p>Verificando sesión...</p>
-            </aside>
+  return (
+    <div className="shell">
+      <aside className="sidebar">
+        <h2>◈ Loans Manager</h2>
+        <p>Verificando sesión...</p>
+      </aside>
 
-            <main className="content">
-                <p>Cargando...</p>
-            </main>
-        </div>
-    );
+      <main className="content">
+        <p>Cargando...</p>
+      </main>
+    </div>
+  );
 }
