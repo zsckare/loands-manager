@@ -22,7 +22,7 @@ async function LoanDetailContent({ params }: DetailProps) {
       client: true,
       plan: true,
       installments: { orderBy: { number: "asc" } },
-      payments: { orderBy: { createdAt: "desc" } },
+      payments: { orderBy: { createdAt: "desc" }, include: { receipt: true } },
     },
   });
   if (!loan) notFound();
@@ -71,7 +71,7 @@ async function LoanDetailContent({ params }: DetailProps) {
           <section className="panel">
             <h2>Últimos pagos</h2>
             {loan.payments.map((payment) => (
-              <p key={payment.id}>${payment.amount.toString()} · {payment.effectiveDate.toISOString().slice(0, 10)}</p>
+              <p key={payment.id}>${payment.amount.toString()} · {payment.effectiveDate.toISOString().slice(0, 10)} {payment.receipt && <a href={`/receipts/${payment.receipt.id}`}>Ver recibo ↗</a>}</p>
             ))}
           </section>
         </div>

@@ -35,6 +35,19 @@ export async function postPayment(ownerId: string, loanId: string, amount: strin
             await tx.paymentAllocation.create({ data: { paymentId: payment.id, installmentId: installment.id, amount: money(applied) } });
             remaining -= applied;
         }
+        // Create receipt and cash ledger entry atomically with the payment.
+        await tx.receipt.create({ data: { ownerId, paymentId: payment.id } });
+        await tx.cashEntry.create({
+            data: {
+                ownerId,
+                paymentId: payment.id,
+                loanId,
+                type: 'PAYMENT',
+                amount,
+                description: `Abono de préstamo ${loanId}`,
+                occurredAt: new Date(`${effectiveDate}T12:00:00Z`),
+            },
+        });
         if (wanted === outstanding)
             await tx.loan.update({ where: { id: loanId }, data: { status: 'PAID_OFF' } });
         return tx.payment.findUniqueOrThrow({ where: { id: payment.id }, include: { allocations: true } });

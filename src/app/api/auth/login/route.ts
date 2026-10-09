@@ -84,7 +84,7 @@ export async function POST(request: Request) {
             },
         });
 
-        if (!user) {
+        if (!user || !user.active) {
             return invalidCredentials();
         }
 

@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 
 import { currentUserId } from "@/lib/auth";
 import { Logout } from "@/components/logout";
+import { MobileNavigation } from "@/components/mobile-navigation";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -42,13 +42,7 @@ async function AuthenticatedAdminLayout({
       <aside className="sidebar">
         <h2>◈ Loans Manager</h2>
 
-        <nav>
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/clients">Clientes</Link>
-          <Link href="/plans">Planes</Link>
-          <Link href="/loans">Préstamos</Link>
-          <Link href="/collections">Cobranza</Link>
-        </nav>
+        <MobileNavigation />
 
         <Logout />
       </aside>

@@ -10,7 +10,33 @@ export async function createLoan(ownerId: string, input: z.infer<typeof loanSche
         throw new HttpError(404, 'Client or plan not found');
     const result = calculate(input.principal, plan.interestRate.toString(), plan.installmentCount);
     const dates = schedule(input.startDate, plan.installmentCount, plan.frequency, plan.collectionDays);
-    return db.loan.create({ data: { ownerId, clientId: client.id, planId: plan.id, principal: input.principal, interestRate: plan.interestRate, totalInterest: result.interest, totalPayable: result.total, installmentCount: plan.installmentCount, frequency: plan.frequency, collectionDays: plan.collectionDays, startDate: new Date(`${input.startDate}T12:00:00Z`), installments: { create: dates.map((date, i) => ({ number: i + 1, dueDate: date, amount: result.installments[i] })) } }, include: { installments: { orderBy: { number: 'asc' } }, client: true } });
+    // The loan and its disbursement are one financial transaction.
+    return db.$transaction(async (tx) => {
+        const loan = await tx.loan.create({
+            data: {
+                ownerId, clientId: client.id, planId: plan.id,
+                principal: input.principal, interestRate: plan.interestRate,
+                totalInterest: result.interest, totalPayable: result.total,
+                installmentCount: plan.installmentCount, frequency: plan.frequency,
+                collectionDays: plan.collectionDays,
+                startDate: new Date(`${input.startDate}T12:00:00Z`),
+                installments: {
+                    create: dates.map((date, i) => ({
+                        number: i + 1, dueDate: date, amount: result.installments[i],
+                    })),
+                },
+            },
+            include: { installments: { orderBy: { number: 'asc' } }, client: true },
+        });
+        await tx.cashEntry.create({
+            data: {
+                ownerId, loanId: loan.id, type: 'DISBURSEMENT',
+                amount: input.principal, description: `Entrega de préstamo a ${client.firstName} ${client.lastName}`,
+                occurredAt: new Date(`${input.startDate}T12:00:00Z`),
+            },
+        });
+        return loan;
+    });
 }
 export function loanSummary<T extends {
     totalPayable: {

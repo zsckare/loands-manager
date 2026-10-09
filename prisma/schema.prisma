@@ -7,6 +7,19 @@ datasource db {
   provider = "postgresql"
 }
 
+enum UserRole {
+  ADMIN
+  SUPERVISOR
+  COLLECTOR
+}
+
+enum CashEntryType {
+  DISBURSEMENT
+  PAYMENT
+  INCOME
+  EXPENSE
+}
+
 enum ClientStatus {
   ACTIVE
   INACTIVE
@@ -35,6 +48,15 @@ model User {
   email        String     @unique
   name         String
   passwordHash String
+  role         UserRole   @default(ADMIN)
+  active       Boolean    @default(true)
+  managerId    String?    @db.Uuid
+  manager      User?      @relation("TeamHierarchy", fields: [managerId], references: [id])
+  team         User[]     @relation("TeamHierarchy")
+  assignments  CollectorAssignment[] @relation("CollectorAssignments")
+  assignedBy   CollectorAssignment[] @relation("AssignedBy")
+  cashEntries  CashEntry[]
+  receipts     Receipt[]
   createdAt    DateTime   @default(now())
   clients      Client[]
   plans        LoanPlan[]
@@ -54,6 +76,7 @@ model Client {
   status    ClientStatus @default(ACTIVE)
   createdAt DateTime     @default(now())
   loans     Loan[]
+  assignments CollectorAssignment[]
 
   @@unique([id, ownerId])
   @@index([ownerId, lastName])
@@ -96,6 +119,7 @@ model Loan {
   createdAt        DateTime      @default(now())
   installments     Installment[]
   payments         Payment[]
+  cashEntries      CashEntry[]
 
   @@unique([id, ownerId])
   @@index([ownerId, status])
@@ -128,6 +152,8 @@ model Payment {
   status         PaymentStatus       @default(POSTED)
   createdAt      DateTime            @default(now())
   allocations    PaymentAllocation[]
+  receipt        Receipt?
+  cashEntry      CashEntry?
 
   @@unique([ownerId, idempotencyKey])
   @@index([loanId, createdAt])
@@ -142,4 +168,44 @@ model PaymentAllocation {
   amount        Decimal     @db.Decimal(18, 2)
 
   @@unique([paymentId, installmentId])
+}
+
+
+// One receipt per posted payment; sequence is global and concurrency-safe.
+model Receipt {
+  id         String   @id @default(uuid()) @db.Uuid
+  number     Int      @unique @default(autoincrement())
+  ownerId    String   @db.Uuid
+  owner      User     @relation(fields: [ownerId], references: [id])
+  paymentId  String   @unique @db.Uuid
+  payment    Payment  @relation(fields: [paymentId], references: [id])
+  issuedAt   DateTime @default(now())
+  @@index([ownerId, issuedAt])
+}
+
+model CashEntry {
+  id          String        @id @default(uuid()) @db.Uuid
+  ownerId     String        @db.Uuid
+  owner       User          @relation(fields: [ownerId], references: [id])
+  type        CashEntryType
+  amount      Decimal       @db.Decimal(18, 2)
+  occurredAt  DateTime      @default(now())
+  description String
+  loanId      String?       @db.Uuid
+  loan        Loan?         @relation(fields: [loanId], references: [id])
+  paymentId   String?       @unique @db.Uuid
+  payment     Payment?      @relation(fields: [paymentId], references: [id])
+  @@index([ownerId, occurredAt])
+}
+
+model CollectorAssignment {
+  id          String   @id @default(uuid()) @db.Uuid
+  clientId    String   @unique @db.Uuid
+  client      Client   @relation(fields: [clientId], references: [id])
+  collectorId String   @db.Uuid
+  collector   User     @relation("CollectorAssignments", fields: [collectorId], references: [id])
+  assignedById String  @db.Uuid
+  assignedBy  User     @relation("AssignedBy", fields: [assignedById], references: [id])
+  createdAt   DateTime @default(now())
+  @@index([collectorId])
 }

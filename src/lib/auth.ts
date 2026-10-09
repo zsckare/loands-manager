@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
+import { db } from "@/lib/db";
 
 const COOKIE_NAME = "loans_session";
 const SESSION_DURATION_SECONDS = 7 * 24 * 60 * 60;
@@ -84,7 +85,12 @@ export async function currentUserId(): Promise<string | null> {
     return null;
   }
 
-  return userId;
+  // A revoked staff account must not retain access via an old cookie.
+  const account = await db.user.findUnique({
+    where: { id: userId },
+    select: { active: true },
+  });
+  return account?.active ? userId : null;
 }
 
 /**
